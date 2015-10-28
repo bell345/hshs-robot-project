@@ -1,0 +1,95 @@
+<link rel="stylesheet" href="/assets/css/interface.css" />
+<script src="/assets/js/interface.js"></script>
+<header>
+    <span class="brand">
+        {{brand}}
+        <span class="sub-brand">
+            {{sub_brand}}
+        </span>
+    </span>
+    <div class="float-right">
+        <button class="logout major">Log Out</button>
+    </div>
+</header>
+<main>
+    <div class="interface-panel main-interface">
+        <div class="image-port loading">
+            <img src="/assets/res/loading.png" alt="RoboView" class="image-feed" />
+        </div>
+        <div class="robot-controls">
+            <div>
+                <button class="move-robot-control forwards">&#x2b06;</button>
+            </div>
+            <div>
+                <button class="move-robot-control left">&#x2b05;</button>
+                <button class="move-robot-control stop">&#x25cf;</button>
+                <button class="move-robot-control right">&#x27a1;</button>
+            </div>
+            <div>
+                <button class="move-robot-control backwards">&#x2b07;</button>
+            </div>
+            <div class="top-controls">
+                <span class="clock"></span>
+                <div class="float-right">
+                    <button class="icon restart-camera"
+                            data-icon-src="/assets/res/icons/refresh.svg"
+                            data-tooltip="Refresh Camera">
+                    </button>
+                    <button class="icon toggle-fullscreen"
+                            data-icon-src="/assets/res/icons/fullscreen.svg"
+                            data-tooltip="Toggle Fullscreen">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="interface-panel camera-config">
+        <div class="control-row">
+            <h2>Camera Config</h2>
+        </div>
+        <div class="control-row">
+            <select class="camera-option-select styled">
+            </select>
+        </div>
+        <div class="control-row">
+            <input type="text" class="option-text-input camera-option-input" />
+            <select class="option-select-input styled camera-option-input">
+            </select>
+            <input type="checkbox" class="option-bool-input camera-option-input" />
+            <input type="number" class="option-number-input camera-option-input" />
+        </div>
+        <div class="control-row">
+            <button class="major camera-option-submit option-submit">Submit</button>
+            <button class="camera-option-revert option-revert">Revert</button>
+        </div>
+    </div>
+    <div class="interface-panel ui-config">
+        <div class="control-row">
+            <h2>UI Config</h2>
+        </div>
+        <div class="control-row">
+            <select class="ui-option-select styled">
+            </select>
+        </div><div class="control-row">
+            <input type="text" class="option-text-input ui-option-input" />
+            <select class="option-select-input styled ui-option-input">
+            </select>
+            <input type="checkbox" class="option-bool-input ui-option-input" />
+            <input type="number" class="option-number-input ui-option-input" />
+        </div>
+        <div class="control-row">
+            <button class="major ui-option-submit option-submit">Submit</button>
+            <button class="ui-option-revert option-revert">Revert</button>
+        </div>
+    </div>
+</main>
+
+<div class="shadow">
+    <div class="fullscreen-notification">
+        <h2></h2>
+        <div class="body"></div>
+        <div class="notification-buttons">
+            <button class="major" onclick="location.reload();">Reload</button>
+        </div>
+    </div>
+</div>
