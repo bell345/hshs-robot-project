@@ -29,8 +29,11 @@
                 <button class="move-robot-control backwards">&#x2b07;</button>
             </div>
             <div class="top-controls">
-                <span class="clock"></span>
                 <div class="float-right">
+                    <button class="icon restart-server"
+                            data-icon-src="/assets/res/icons/power.svg"
+                            data-tooltip="Restart Server">
+                    </button>
                     <button class="icon restart-camera"
                             data-icon-src="/assets/res/icons/refresh.svg"
                             data-tooltip="Refresh Camera">
@@ -90,6 +93,7 @@
         <div class="body"></div>
         <div class="notification-buttons">
             <button class="major" onclick="location.reload();">Reload</button>
+            <button onclick="$('.shadow').removeClass('show')">Close</button>
         </div>
     </div>
 </div>

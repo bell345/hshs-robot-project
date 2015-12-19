@@ -1,0 +1,63 @@
+<main>
+    <h1>Register</h1>
+    <form action="/api/v1/register" method="post" id="register-form">
+        <input type="hidden" name="redirect" value="/" />
+        <div class="control-row">
+            <span class="error-message"></span>
+        </div>
+        <div class="control-row">
+            <input type="text" class="register-username" placeholder="Username" spellcheck="false" name="username" />
+        </div>
+        <div class="control-row">
+            <input type="password" class="register-password" placeholder="Password" name="password" />
+        </div>
+        <div class="control-row">
+            <input type="submit" class="register-submit" />
+        </div>
+    </form>
+</main>
+
+
+<script>
+    $(function () {
+        if (query.error || query.error_type) {
+            $(".error-message").addClass("show").html("An error occured.");
+        }
+
+        $("#register-form").show().on("submit", function (event) {
+            if (event.preventDefault) event.preventDefault();
+
+            $(".error-message").removeClass("show");
+
+            $.ajax({
+                type: "POST",
+                url: "/register",
+                data: {
+                    "username": $(".register-username").val(),
+                    "password": $(".register-password").val()
+                },
+                success: function (response, status, xhr) {
+                    if (response.id) {
+                        location.replace(query.redirect ? decodeURIComponent(query.redirect) : "/");
+                    } else {
+                        $(".error-message").addClass("show")
+                                .html("Got unexpected response from server &mdash; you may have invalid user credentials.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    try {
+                        var obj = JSON.parse(xhr.responseText);
+                        if (obj.error_description)
+                            $(".error-message").addClass("show")
+                                    .html(obj.error_description);
+                    } catch (e) {
+                        $(".error-message").addClass("show")
+                                .html(status);
+                    }
+                }
+            });
+
+            return false;
+        });
+    });
+</script>

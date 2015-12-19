@@ -8,7 +8,7 @@ I don't like PHP, and so I decided to rewrite the [previous Raspberry Pi camera 
 web interface](http://www.elinux.org/RPi-Cam-Web-Interface) entirely in Node.js. 
 
 This interface has authentication (more of an exercise than a rock-solid implementation) with
-PostgreSQL and encrypted passwords, but no HTTPS, which pretty much defeats the point. It
+MongoDB and encrypted passwords, but no HTTPS, which pretty much defeats the point. It
 also has logs, which rotate!
 
 There are a few things this can't do, such as deal with capturing images/videos and
@@ -26,7 +26,7 @@ If you want to download this thing for yourself, there's a few things you need f
  * express
  * hbs
  * morgan
- * pg
+ * mongoose
  * serve-favicon
 
 You'll also need [`raspimjpeg`](https://github.com/rpicopter/raspimjpeg) with some custom config 

@@ -58,7 +58,7 @@ function authenticate(done) {
     }
 
     var self = this;
-    return this.model.getUser(creds[0], creds[1], function (err, user) {
+    return this.model.login(creds[0], creds[1], function (err, user) {
         if (err)
             return done(error("server_error", false, err));
 

@@ -21,6 +21,7 @@
 var issue = require("./issue"),
     error = require("./error"),
     authenticate = require("./auth"),
+    register = require("./register"),
     qs = require("qs");
 
 module.exports = AuthServer;
@@ -61,10 +62,18 @@ AuthServer.prototype.issueToken = function () {
     };
 };
 
-AuthServer.prototype.authenticate = function () {
+AuthServer.prototype.authenticate = function (privileged) {
     var self = this;
     return function (req, res, next) {
+        req.privileged = privileged ? true : false;
         return new authenticate(self, req, res, next);
+    };
+};
+
+AuthServer.prototype.register = function () {
+    var self = this;
+    return function (req, res, next) {
+        return new register(self, req, res, next);
     };
 };
 
@@ -82,11 +91,13 @@ AuthServer.prototype.errorHandler = function () {
         if (err.headers) res.set(err.headers);
         delete err.headers;
 
+        console.log(req.path);
+
         if (req.method === "GET" && (
                 !(self.rawErrorHandling instanceof RegExp) ||
                     req.path.match(self.rawErrorHandling) === null
             )) {
-            if (self.challengeRedirect && err.status >= 400 && err.status < 500)
+            if (self.challengeRedirect)
                 return res.redirect(
                     self.challengeRedirect + "?" +
                     qs.stringify({

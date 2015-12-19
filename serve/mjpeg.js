@@ -12,8 +12,11 @@ module.exports = function (localFile) {
     var router = express.Router();
 
     router.get("/", function (req, res, next) {
-        var delay = 200;
+        var delay = 200,
+            startTime = new Date().getTime(),
+            timeout = 0;
         if (req.query.delay) delay = parseInt(req.query.delay);
+        if (req.query.timeout) timeout = parseInt(req.query.timeout);
 
         res.writeHead(200, {
             "Content-Type": "multipart/x-mixed-replace; boundary=" + BOUNDARY,
@@ -22,7 +25,7 @@ module.exports = function (localFile) {
             "Connection": "close"
         });
 
-        res.setTimeout(0);
+        res.setTimeout(timeout);
 
         (function serveFrame() {
             fs.readFile(localFile, function (err, data) {
@@ -36,7 +39,9 @@ module.exports = function (localFile) {
                 res.write(data);
                 res.write("\r\n");
 
-                setTimeout(serveFrame, delay);
+                if (timeout == 0 || startTime + timeout > new Date().getTime())
+                    setTimeout(serveFrame, delay);
+                else res.end();
             });
         })();
     });

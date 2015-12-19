@@ -58,7 +58,8 @@ function updateCameraFeed() {
             "/api/v1/camera/" + (uiConfig.useMJPEG ? "mjpeg" : "jpeg")
             + "?" + queryString({
                 t: new Date().getTime(),
-                delay: uiConfig.jpegRefreshDelay
+                delay: uiConfig.jpegRefreshDelay,
+                timeout: uiConfig.mjpegRefreshDelay
             }));
 
     window.setTimeout(updateCameraFeed, uiConfig.useMJPEG
@@ -343,7 +344,7 @@ function refreshCamera() {
         url: "/api/v1/camera/restart",
         success: function (response, status, xhr) {
             $(".restart-camera").attr("disabled", false);
-            $ip.removeClass("loading");
+            //$ip.removeClass("loading");
             feedEnabled = true;
         },
         error: function (xhr, status, error) {
@@ -353,24 +354,75 @@ function refreshCamera() {
         }
     });
 }
+function restartServer() {
+    var $ip = $(".image-port");
+    $ip.addClass("loading");
+    $(".image-feed").attr("src", "/assets/res/missing.png");
+    feedEnabled = false;
+
+    $.ajax({
+        method: "POST",
+        url: "/api/v1/admin/restart",
+        success: function (response, status, xhr) {
+            $(".restart-server").attr("disabled", false);
+            //$ip.removeClass("loading");
+            feedEnabled = true;
+        },
+        error: function (xhr, status, error) {
+            console.log(xhr.responseText);
+            reportError("Failed to restart server.", xhr);
+            feedEnabled = true;
+        }
+    })
+}
+
+function makeMotorRequest(speed, direction, callback) {
+    var options = {};
+    if (!isNull(speed)) options["speed"] = speed;
+    if (!isNull(direction)) options["direction"] = direction;
+    $.ajax({
+        method: "POST",
+        url: "/api/v1/motor/control",
+        data: JSON.stringify(options),
+        contentType: "application/json",
+        success: function (response, status, xhr) {
+            callback(response, status, xhr);
+        },
+        error: function (xhr, status, error) {
+            console.log(xhr);
+            reportError("Failed to update motor control.", xhr);
+        }
+    })
+}
+
+function saveUIConfig() {
+    localStorage.setItem("robot-project-ui-config",
+        JSON.stringify(uiConfig));
+}
 
 $(function () {
 Require(["assets/js/tblib/loader.js",
          "assets/js/tblib/ui.js"], function () {
 
-    if (!localStorage.getItem("robot-project-ui-config"))
+    try {
+        uiConfig =
+            JSON.parse(localStorage.getItem("robot-project-ui-config"));
+        if (isNull(uiConfig))
+            throw new Error();
+    } catch (e) {
         uiConfig = {
             "useMJPEG": true,
-            "jpegRefreshDelay": 300,
-            "mjpegRefreshDelay": 5000
+            "jpegRefreshDelay": 100,
+            "mjpegRefreshDelay": 5000,
+            "motorMaxSpeed": 1,
+            "motorTurnMagnitude": 1
         };
-    else uiConfig =
-        JSON.parse(localStorage.getItem("robot-project-ui-config"));
-
-    $(window).on("beforeunload", function () {
-        localStorage.setItem("robot-project-ui-config",
-            JSON.stringify(uiConfig));
-    });
+        saveUIConfig();
+    }
+    //$(window).on("beforeunload", function () {
+    //    localStorage.setItem("robot-project-ui-config",
+    //        JSON.stringify(uiConfig));
+    //});
 
     loader.start();
 
@@ -414,8 +466,8 @@ Require(["assets/js/tblib/loader.js",
             var el = keyToUI(event);
 
             if (el) {
+                el.trigger("keydown", event);
                 el.addClass("active");
-                el.trigger("keydown");
                 return false;
             }
         });
@@ -425,8 +477,8 @@ Require(["assets/js/tblib/loader.js",
 
             if (el) {
                 el.removeClass("active");
-                el.trigger("keyup");
-                el.trigger("click");
+                el.trigger("keyup", event);
+                el.trigger("click", event);
                 return false;
             }
         });
@@ -437,6 +489,28 @@ Require(["assets/js/tblib/loader.js",
                 refreshCamera();
                 $self.attr("disabled", true);
             }
+        });
+
+        $(".restart-server").click(function () {
+            var $self = $(this);
+            if (!$self.attr("disabled")) {
+                restartServer();
+                $self.attr("disabled", true);
+            }
+        });
+
+        $(".toggle-fullscreen").click(function () {
+            var $ip = $(".image-port");
+
+            var fullscreenInterval = setInterval(function () {
+                if (!Fullscreen.check()) {
+                    $ip.removeClass("fullscreen");
+                    clearInterval(fullscreenInterval);
+                }
+            }, 100);
+
+            Fullscreen.set(document.documentElement);
+            $ip.addClass("fullscreen");
         });
 
         var cameraOptionSelect = new OptionSelect("camera");
@@ -488,37 +562,65 @@ Require(["assets/js/tblib/loader.js",
                     else uiConfig[prop] = changes[prop];
                 }
 
+                saveUIConfig();
+
                 os.fill();
                 callback();
             }
         };
         uiOptionSelect.fill();
 
-        $(".toggle-fullscreen").click(function () {
-            var $ip = $(".image-port");
+        function getMotorParameters(newDirection) {
+            function lookup(dir) {
+                return $(".move-robot-control."+dir).hasClass("active")
+                    || dir == newDirection;
+            }
 
-            var fullscreenInterval = setInterval(function () {
-                if (!Fullscreen.check()) {
-                    $ip.removeClass("fullscreen");
-                    clearInterval(fullscreenInterval);
-                }
-            }, 100);
+            var speed = 0, direction = 0;
+            if (lookup("forwards")) speed += uiConfig["motorMaxSpeed"] || 1;
+            if (lookup("backwards")) speed -= uiConfig["motorMaxSpeed"] || 1;
+            if (lookup("right")) direction += uiConfig["motorTurnMagnitude"] || 1;
+            if (lookup("left")) direction -= uiConfig["motorTurnMagnitude"] || 1;
+            if (lookup("stop")) speed = direction = 0;
 
-            Fullscreen.set(document.documentElement);
-            $ip.addClass("fullscreen");
+            if (direction !== 0 && speed == 0)
+                speed = uiConfig["motorMaxSpeed"] || 1;
+
+            return { speed: speed, direction: direction };
+        }
+
+        var buttons = ["forwards", "backwards", "left", "right", "stop"];
+        buttons.forEach(function (direction) {
+            function down(event) {
+                if (event.button > 0)
+                    return;
+
+                var params = getMotorParameters(direction);
+                console.log("New motor params: %s %s",
+                    params.speed, params.direction);
+
+                makeMotorRequest(params.speed, params.direction, function () {
+                    console.log("Motor params change success");
+                });
+            }
+
+            function up() {
+                var params = getMotorParameters();
+                console.log("New motor params: %s %s",
+                    params.speed, params.direction);
+
+                makeMotorRequest(params.speed, params.direction, function () {
+                    console.log("Motor params change success");
+                });
+            }
+
+            $(".move-robot-control." + direction)
+                .on("keydown", down)
+                .on("mousedown", down)
+                .on("keyup", up)
+                .on("mouseup", up);
+
         });
-
-        window.setInterval(function () {
-            var now = new Date();
-            $(".clock").html(
-                zeroPrefix(now.getHours()) + ":"
-                + zeroPrefix(now.getMinutes()) + ":"
-                + zeroPrefix(now.getSeconds())
-                + "<span class='milliseconds'>."
-                + zeroPrefix(now.getMilliseconds(), 3)
-                + "</span>"
-            );
-        }, 10);
 
         updateCameraFeed();
     });

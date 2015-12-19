@@ -6,6 +6,8 @@ import shutil
 import argparse
 from sys import argv
 
+MAX = 50
+
 verbose = False
 
 def getNewLogName(filename, log_dir="./", n=0):
@@ -22,7 +24,7 @@ def rotateLog(filename, log_dir="", n=0):
     new_file = getNewLogName(filename, log_dir=log_dir, n=n)
     if verbose:
         print("Trying new_file: {}".format(new_file))
-    if os.path.exists(new_file):
+    if os.path.exists(new_file) and n < MAX:
         n += 1
         rotateLog(new_file, log_dir="", n=n)
 

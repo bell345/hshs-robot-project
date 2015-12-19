@@ -55,7 +55,7 @@ main {
     top:0;
     bottom:0;
     margin:auto 0;
-    padding-top:12%;
+    padding-top:10.5%;
 }
 .move-robot-control {
     width:64px;
@@ -85,6 +85,10 @@ main {
     z-index:999;
     width:100%;
     cursor:pointer;
+}
+
+.image-port.fullscreen .image-feed {
+    height:100%;
 }
 
 @keyframes rotate360 {

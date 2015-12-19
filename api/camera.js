@@ -5,68 +5,17 @@
  */
 var error = require("./error"),
     express = require("express"),
+    path = require("path"),
     mjpeg = require("../serve/mjpeg"),
     execFile = require("child_process").execFile,
     fs = require("fs"),
     local = require("../serve/static");
 
-var router = express.Router(),
-    BASE_URL = "/srv/http/camera/";
+var BASE_URL = "/srv/http/camera",
+    CONFIG_FILE = "/etc/raspimjpeg",
+    CAM_JPEG = "/dev/shm/mjpeg/cam.jpg";
 
-router.use("/mjpeg", mjpeg("/dev/shm/mjpeg/cam.jpg"));
-router.use("/jpeg", local("/dev/shm/mjpeg/cam.jpg"));
-
-router.post("/restart", function (req, res, next) {
-    execFile(BASE_URL+"restart.sh", function (err) {
-        if (err) return next(error("server_error", "Camera failed to restart."));
-
-        var sent = false;
-
-        function readStatusFile(callback) {
-            fs.readFile(BASE_URL + "status.txt", function (err, data) {
-                if (err) return next(error("server_error",
-                    "Camera failed to restart."));
-
-                if (data.toString("ascii") === "ready" && !sent) {
-                    callback();
-                    res.status(200).json({
-                        "state": "success"
-                    });
-                    sent = true;
-                } else console.log(data);
-            });
-        }
-
-        function watchStatusFile() {
-            readStatusFile(function () {});
-            var watcher = fs.watch(BASE_URL + "status.txt",
-                { persistent: false }, function (event) {
-                    if (event === "change") {
-                        readStatusFile(function () {
-                            watcher.close();
-                        });
-                    }
-                });
-
-            setTimeout(function () {
-                if (sent) return;
-
-                watcher.close();
-
-                console.log("Timeout!!!");
-                res.status(500).json({
-                    "error_type": "server_error",
-                    "error_description":
-                        "The camera failed to restart within the timeout period.",
-                    "status": 500,
-                    "state": "timeout"
-                });
-            }, 20000);
-        }
-
-        watchStatusFile();
-    });
-});
+function j(filename) { return path.join(BASE_URL, filename); }
 
 var disallowedOptions = [
     /^motion/,
@@ -108,7 +57,8 @@ function sanitise(str) {
 }
 function readConfigFile(filename, config, next, callback) {
     fs.readFile(filename, function (err, data) {
-        if (err) return next(error("server_error", "Failed to get camera config: "+filename));
+        if (err) return next(error("server_error",
+            "Failed to get camera config: "+filename));
 
         var lines = data.toString("ascii").split("\n");
         for (var i=0;i<lines.length;i++) {
@@ -143,51 +93,109 @@ function writeToConfigFile(filename, config, next, callback) {
     });
 }
 function getCameraConfig(next, callback) {
-    readConfigFile("/etc/raspimjpeg", {}, next, function (config) {
-        readConfigFile(config["user_config"] || BASE_URL+"user.cfg",
+    readConfigFile(CONFIG_FILE, {}, next, function (config) {
+        readConfigFile(config["user_config"] || j("user.cfg"),
             config, next, function (config) {
                 callback(config);
             });
     });
 }
+    
+module.exports = function (auth) {
+    var router = express.Router();
 
-router.get("/config", function (req, res, next) {
-    getCameraConfig(next, function (config) {
-        delete config["user_config"];
-        res.status(200).json(config);
-    });
-});
+    router.use("/mjpeg", mjpeg(CAM_JPEG));
+    router.use("/jpeg", local(CAM_JPEG));
 
-router.put("/config", function (req, res, next) {
-    if (!req.is("application/json"))
-        return next(error("invalid_request",
-            "Request is required to be in application/json format."));
+    router.post("/restart", auth.authenticate(true), function (req, res, next) {
+        execFile(j("restart.sh"), function (err) {
+            if (err) return next(error("server_error", "Camera failed to restart."));
 
-    readConfigFile("/etc/raspimjpeg", {}, next, function (config) {
-        if (!config["user_config"]) return next(error("server_error",
-            "User config file cannot be found."));
+            var sent = false;
 
-        var configFile = config["user_config"];
+            function readStatusFile(callback) {
+                fs.readFile(j("status.txt"), function (err, data) {
+                    if (err) return next(error("server_error",
+                        "Camera failed to restart."));
 
-        readConfigFile(configFile, {}, next, function (config) {
-
-            for (var key in req.body) if (req.body.hasOwnProperty(key)) {
-                console.log(key);
-                var value = sanitise(req.body[key]);
-                key = sanitise(key);
-                if (isOptionAllowed(key) && key !== "user_config")
-                    config[key] = value;
+                    if (data.toString("ascii") === "ready" && !sent) {
+                        callback();
+                        res.status(200).json({
+                            "state": "success"
+                        });
+                        sent = true;
+                    }
+                });
             }
 
-            writeToConfigFile(configFile, config, next, function () {
-                getCameraConfig(next, function (config) {
-                    delete config["user_config"];
-                    res.status(200).json(config);
-                });
-            });
+            function watchStatusFile() {
+                readStatusFile(function () {});
+                var watcher = fs.watch(j("status.txt"),
+                    { persistent: false }, function (event) {
+                        if (event === "change") {
+                            readStatusFile(function () {
+                                watcher.close();
+                            });
+                        }
+                    });
 
+                setTimeout(function () {
+                    if (sent) return;
+
+                    watcher.close();
+
+                    console.log("Timeout!!!");
+                    res.status(500).json({
+                        "error_type": "server_error",
+                        "error_description":
+                            "The camera failed to restart within the timeout period.",
+                        "status": 500,
+                        "state": "timeout"
+                    });
+                }, 20000);
+            }
+
+            watchStatusFile();
         });
-    })
-});
+    });
 
-module.exports = router;
+    router.get("/config", function (req, res, next) {
+        getCameraConfig(next, function (config) {
+            delete config["user_config"];
+            res.status(200).json(config);
+        });
+    });
+
+    router.put("/config", auth.authenticate(true), function (req, res, next) {
+        if (!req.is("application/json"))
+            return next(error("invalid_request",
+                "Request is required to be in application/json format."));
+
+        readConfigFile(CONFIG_FILE, {}, next, function (config) {
+            if (!config["user_config"]) return next(error("server_error",
+                "User config file cannot be found."));
+
+            var configFile = config["user_config"];
+
+            readConfigFile(configFile, {}, next, function (config) {
+
+                for (var key in req.body) if (req.body.hasOwnProperty(key)) {
+                    var value = sanitise(req.body[key]);
+                    key = sanitise(key);
+                    if (isOptionAllowed(key) && key !== "user_config")
+                        config[key] = value;
+                }
+
+                writeToConfigFile(configFile, config, next, function () {
+                    getCameraConfig(next, function (config) {
+                        delete config["user_config"];
+                        res.status(200).json(config);
+                    });
+                });
+
+            });
+        })
+    });
+    
+    return router;
+};

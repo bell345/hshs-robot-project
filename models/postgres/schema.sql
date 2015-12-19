@@ -9,7 +9,7 @@ SET client_min_messages = warning;
 
 CREATE TABLE access_tokens (
     access_token text NOT NULL,
-    user_id integer NOT NULL,
+    id integer NOT NULL,
     expires timestamp without time zone NOT NULL
 );
 

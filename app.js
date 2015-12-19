@@ -6,9 +6,12 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var authServer = require("./auth");
 var os = require("os");
+var api = require("./api");
+var model = require("./models/mongo");
 
 var routes = require('./routes/index');
 var login = require("./routes/login");
+var register = require("./routes/register");
 
 var app = express();
 
@@ -25,7 +28,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 var auth = new authServer({
-    model: require("./models/database_auth.js"),
+    model: model,
     challengeRedirect: "/login",
     accessTokenLifetime: 9e6,
     rawErrorHandling: /^\/api\//
@@ -49,8 +52,8 @@ app.get("/", auth.authenticate(), function (req, res, next) {
 
 //app.use("/api/v1/camera/mjpeg", auth.authenticate(), require("./serve/mjpeg")("/dev/shm/mjpeg/cam.jpg"));
 
-app.use("/api/v1", auth.authenticate(), require("./api"));
-
+app.use("/api/v1", api(model, auth));
+app.use("/register", auth.authenticate(true), register(auth));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -59,7 +62,7 @@ app.use(function(req, res, next) {
     next(err);
 });
 
-app.use(require("./api/handler")());
+app.use(api.errorHandler());
 app.use(auth.errorHandler());
 
 // error handlers

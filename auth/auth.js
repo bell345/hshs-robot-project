@@ -34,7 +34,8 @@ function getToken(done) {
 
     if (!cookieToken &&
         !headerToken)
-        return done(error("invalid_token", "Access token is missing or expired. Please log in."));
+        return done(error("invalid_token",
+            "Access token is missing or expired. Please log in."));
 
     this.bearerToken = cookieToken || headerToken;
     done();
@@ -54,7 +55,11 @@ function checkToken(done) {
             return done(error("invalid_token",
                 "The access token provided has expired."));
 
-        self.req.user = token.user ? token.user : { id: token.userId };
+        self.req.user = token.user ? token.user : { id: token.id };
+
+        if (self.req.privileged && self.req.user.id == 2)
+            return done(error("invalid_token",
+                "A privileged account is required to access this resource."));
 
         done();
     });
