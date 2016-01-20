@@ -63,7 +63,7 @@ function authenticate(done) {
             return done(error("server_error", false, err));
 
         if (!user)
-            return done(error("invalid_grant", "User credentials are invalid"));
+            return done(error("invalid_grant", "User credentials are invalid."));
 
         self.user = user;
         done();

@@ -57,10 +57,17 @@ function checkToken(done) {
 
         self.req.user = token.user ? token.user : { id: token.id };
 
-        if (self.req.privileged && self.req.user.id == 2)
-            return done(error("invalid_token",
-                "A privileged account is required to access this resource."));
+        self.model.getUser(self.req.user.id, function (err, user) {
+            if (err) return done(error("server_error", false, err));
 
-        done();
+            delete user.hash;
+            self.req.user = user;
+
+            if (self.req.privileged && self.req.user.id == 2)
+                return done(error("invalid_token",
+                    "A privileged account is required to access this resource."));
+
+            done();
+        });
     });
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  *  VERSION 6 Stylesheet
  *  Licensed under Creative Commons Attribution-ShareAlike 4.0 International
  *  http://creativecommons.org/licenses/by-sa/4.0/
@@ -314,7 +314,7 @@ input[type="text"].short {
     width:80px;
 }
 .control-row {
-    margin-bottom:8px;
+    margin-bottom:.8em;
 }
 .control-row * {
     vertical-align:middle;
@@ -874,3 +874,251 @@ input[type='checkbox']:checked::after {
     width:50%;
     border-color:#2bf;
 }
+
+
+/* ========= */
+/*  WINDOWS  */
+/* ========= */
+/*
+.window {
+    position:fixed;
+    background:#eee;
+    border:1px solid #555;
+    min-width:200px;
+    min-height:120px;
+}
+.window::before {
+    content:"";
+    position:fixed;
+    background:transparent;
+    border:1px solid rgba(0, 179, 255, 0);
+}
+.window.max-ready::before {
+    top:14px;
+    bottom:14px;
+    left:14px;
+    right:14px;
+    transition:0.5s all;
+    background:rgba(0, 179, 255, 0.3);
+    border-color:rgba(0, 179, 255, 0.5);
+}
+.window.maximised {
+    top:0 !important;
+    left:0 !important;
+    width:100% !important;
+    height:100% !important;
+    max-width:100% !important;
+    max-height:100% !important;
+}
+.window.minimised {
+    -webkit-transform:scale(0);
+    -moz-transform:scale(0);
+    transform:scale(0);
+}
+.window.closing {
+    -webkit-transform:scale(0.6);
+    -moz-transform:scale(0.6);
+    transform:scale(0.6);
+    opacity:0;
+}
+.window-header {
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:38px;
+    line-height:38px;
+    background:#444;
+    box-shadow:inset 8px 8px 8px -8px #333;
+    cursor:-webkit-grab;
+    cursor:grab;
+    -webkit-user-select:none;
+    user-select:none;
+    white-space:nowrap;
+}
+.window-header.mac-style::before {
+    content:"";
+    position:absolute;
+    top:0;
+    bottom:0;
+    right:0;
+    width:32px;
+    background:linear-gradient(-90deg, #444, #444 20%, transparent);
+}
+.window-header:active {
+    cursor:-webkit-grabbing;
+    cursor:grabbing;
+}
+.window.moving .window-header:active::after,
+.window.resizing .window-resizer:active::after {
+    content:"";
+    position:absolute;
+    top:-1024px;
+    left:-1024px;
+    right:-1024px;
+    bottom:-1024px;
+    z-index:9999;
+}
+.window-icon {
+    float:left;
+    height:100%;
+    padding:8px;
+}
+.window-header.mac-style .window-icon {
+    display:none;
+}
+.window-header-buttons {
+    display:inline-block;
+    color:#eee;
+    font-size:0;
+    height:100%;
+    float:left;
+    position:absolute;
+    left:0;
+    top:0;
+    background:#444;
+    box-shadow:inset -8px 8px 8px -8px #333;
+}
+.window-header:not(.mac-style) .window-header-buttons {
+    float:right;
+    left:initial;
+    right:0;
+}
+.window-header-buttons::before {
+    content:"";
+    position:absolute;
+    right:-32px;
+    top:0;
+    bottom:0;
+    width:32px;
+    background:linear-gradient(90deg, #444, #444 20%, transparent);
+}
+.window-header:not(.mac-style) .window-header-buttons::before {
+    right:initial;
+    left:-32px;
+    background:linear-gradient(-90deg, #444, #444 20%, transparent);
+}
+.window-header-buttons div {
+    display:inline-block;
+    font-size:20px;
+    padding:0 8px;
+    height:100%;
+    width:38px;
+    text-align:center;
+    background:inherit;
+    position:relative;
+    float:left;
+    cursor:pointer;
+}
+.window-header-buttons div:hover {
+    background:#07c;
+}
+.window-header-buttons div::before,
+.window-header-buttons div::after {
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+    margin:auto;
+    background:#eee;
+}
+div.window-header-close {
+    background:#a00;
+}
+div.window-header-close:hover {
+    background:#d00;
+}
+.window-header:not(.mac-style) div.window-header-close {
+    float:right;
+}
+.window-header-close::before,
+.window-header-close::after {
+    content:" ";
+    width:50%;
+    height:5%;
+}
+.window-header-close::before {
+    -webkit-transform:rotate(45deg);
+    -moz-transform:rotate(45deg);
+    transform:rotate(45deg);
+}
+.window-header-close::after {
+    -webkit-transform:rotate(-45deg);
+    -moz-transform:rotate(-45deg);
+    transform:rotate(-45deg);
+}
+.window-header-minimise::before {
+    content:" ";
+    width:50%;
+    height:5%;
+}
+.window div.window-header-maximise::before,
+.window div.window-header-maximise::after {
+    content:" ";
+    width:30%;
+    height:30%;
+    background:inherit;
+    border:2px solid #eee;
+}
+div.window.maximised div.window-header-maximise::before {
+    width:25%;
+    height:25%;
+    margin-bottom:40%;
+    margin-right:40%;
+}
+div.window.maximised div.window-header-maximise::after {
+    width:25%;
+    height:25%;
+    margin-top:40%;
+    margin-left:40%;
+}
+
+.window-title {
+    font-size:20px;
+    font-family:"Raleway", "Helvetica", sans-serif;
+    padding:0;
+    padding-left:32px;
+    display:block;
+    margin:0;
+    color:#eee;
+    text-shadow:0 0 4px #000;
+    overflow:hidden;
+    display:block;
+    height:100%;
+    margin-bottom:0;
+}
+.window-title * {
+    margin-bottom:0;
+}
+.window-header.mac-style .window-title {
+    padding-left:152px;
+}
+.window-content {
+    position:absolute;
+    top:38px;
+    left:0;
+    right:0;
+    bottom:0;
+}
+.window-body {
+    padding:18px 24px;
+    overflow:auto;
+    width:100%;
+    height:100%;
+}
+
+.window-body::-webkit-scrollbar-track {
+    margin-bottom:16px;
+}
+
+.window .window-resizer {
+    position:absolute;
+    bottom:0;
+    right:0;
+    width:16px;
+    height:16px;
+    background:url(../../res/jswm-resizer.png);
+    cursor:se-resize;
+}
+*/

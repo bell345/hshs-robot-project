@@ -43,7 +43,7 @@ model.login = function (username, password, callback) {
 
         var id = result.id;
         bcrypt.compare(password, result.hash, function (err, res) {
-            if (err || !res) return callback(err || "Credentials invalid");
+            if (err || !res) return callback(err || "User credentials are invalid.");
 
             callback(err, { id: id, username: username });
         });

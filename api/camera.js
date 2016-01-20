@@ -180,7 +180,7 @@ module.exports = function (auth) {
             readConfigFile(configFile, {}, next, function (config) {
 
                 for (var key in req.body) if (req.body.hasOwnProperty(key)) {
-                    var value = sanitise(req.body[key]);
+                    var value = sanitise(req.body[key].toString());
                     key = sanitise(key);
                     if (isOptionAllowed(key) && key !== "user_config")
                         config[key] = value;

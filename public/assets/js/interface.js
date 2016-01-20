@@ -4,7 +4,7 @@
  * MIT Licensed
  */
 
-var uiConfig;
+var uiConfig, wm;
 
 function keyToUI(event) {
     var key = event.which;
@@ -80,37 +80,49 @@ function getCameraConfig(callback) {
 }
 
 function reportError(message, error) {
-    if (error.responseJSON) error = error.responseJSON;
+    if (!error) error = null;
+    else if (error.responseJSON) error = error.responseJSON;
     else if (error.responseText) try {
         error = JSON.parse(error.responseText);
-    } catch (e) {}
+    } catch (e) { error = error.responseText; }
     else if (error.statusText) error = error.statusText;
 
-    $(".shadow").addClass("show");
-    var $note = $(".fullscreen-notification");
-    $note.find("h2").html("An error occurred.");
-    $note.find("div.body").html(
-        "<p>" + message + "</p>"
-        + (error
-            ? "<pre><code>" + (error.error_description || error) + "</code></pre>"
-            : "")
+    var errtext = error
+        ? "<pre><code>" + (error.error_description || error) + "</code></pre>"
+        : "";
+
+    wm.spawn(JSWM.Dialog, "An error occurred.",
+        "<p>" + message + "</p>" +
+        errtext,
+        { x: "25%", y: "25%", width: "50%", height: "50%",
+            shadow: true, dialogOptions: JSWM.DialogOptions.ok }
     );
+
+    //$(".shadow").addClass("show");
+    //var $note = $(".fullscreen-notification");
+    //$note.find("h2").html("An error occurred.");
+    //$note.find("div.body").html(
+    //    "<p>" + message + "</p>"
+    //    + (error
+    //        ? "<pre><code>" + (error.error_description || error) + "</code></pre>"
+    //        : "")
+    //);
 }
 
 function getHumanReadableOption(optionName) {
     var words = optionName.split("_");
     var hrstring = "",
         specialWords = {
-            "hflip": "Horizontal Flip",
-            "vflip": "Vertical Flip",
-            "iso": "ISO",
-            "anno": "Annotation",
-            "anno3": "Annotation",
-            "fps": "FPS",
-            "tl": "TL",
-            "w": "Width",
-            "h": "Height",
-            "num": "Number"
+            hflip: "Horizontal Flip",
+            vflip: "Vertical Flip",
+            iso:   "ISO",
+            anno:  "Annotation",
+            anno3: "Annotation",
+            fps:   "FPS",
+            tl:    "TL",
+            w:     "Width",
+            h:     "Height",
+            num:   "Number"
         };
     for (var i=0;i<words.length;i++) {
         var word = words[i];
@@ -125,147 +137,6 @@ function getHumanReadableOption(optionName) {
     }
 
     return hrstring;
-}
-
-function OptionSelect(prefix) {
-    this.prefix = prefix;
-    this.getConfig = function () { return {}; };
-    this.setConfig = function (os, c) { };
-    this.humanise = function (e) { return e; };
-    this.limitedOptions = {};
-
-    this.get = function () {
-        return $("."+this.prefix+"-option-select");
-    };
-    this.getInputs = function () {
-        return $("."+this.prefix+"-option-input");
-    };
-    this.getActiveInput = function () {
-        return this.getInputs().filter(".show");
-    };
-    this.getContainer = function () {
-        return $("."+this.prefix+"-config");
-    };
-    this.fill = function () {
-        var $os = this.get();
-
-        $os.empty().trigger("change");
-
-        var self = this;
-        self.getConfig(function (config) {
-            TBI.UI.fillSelect($os[0], config, function (option, key, value) {
-                option.value = key;
-                option.dataset.value = value;
-                option.dataset.originalValue = value;
-                option.innerHTML = self.humanise(key);
-            });
-            self.get().val("-").trigger("update");
-        });
-    };
-    this.getChanges = function () {
-        var options = this.get().find("option");
-        if (options.length > 1) {
-            var obj = {};
-            for (var i=0;i<options.length;i++) {
-                if (options[i].dataset.originalValue &&
-                    options[i].dataset.value !== options[i].dataset.originalValue)
-                    obj[options[i].value] = options[i].dataset.value;
-            }
-
-            return obj;
-        } else return {};
-    };
-
-    this.submitOption = function () {
-        var input = this.getActiveInput(),
-            prevOption = this.get().find("option")
-                .filter("[value='"+input.data("name")+"']");
-
-        switch (true) {
-            case input.hasClass("option-bool-input"):
-                prevOption.attr("data-value", input[0].checked ? "true" : "false");
-                break;
-            default:
-                prevOption.attr("data-value", input.val());
-        }
-    };
-
-    this.update = function () {
-        var curr = this.get().val();
-
-        this.submitOption();
-
-        var option = this.get().find("option").filter("[value='"+curr+"']"),
-            val = option.attr("data-value");
-
-        this.getInputs().removeClass("show");
-        this.getContainer().find(".styled-select").removeClass("show");
-
-        if (isNull(curr) || curr == "-") return;
-
-        // prepare current value
-        switch (true) {
-            case this.limitedOptions[option.val()] !== undefined:
-                var select = this.getInputs().filter(".option-select-input");
-
-                TBI.UI.fillSelect(select[0], this.limitedOptions[option.val()],
-                    function (option, i, value) {
-                        option.innerHTML = value;
-                        option.value = value;
-                });
-                select.parent().addClass("show")
-                    .find("select")
-                    .data("name", option.val())
-                    .addClass("show")
-                    .val(val)
-                    .trigger("change");
-
-                break;
-            case val === "false":
-            case val === "true":
-                this.getInputs().filter(".option-bool-input")
-                    .addClass("show")
-                    .data("name", option.val())[0]
-                    .checked = (val === "true");
-
-                break;
-            case !isNaN(parseFloat(val)):
-                this.getInputs().filter(".option-number-input")
-                    .addClass("show")
-                    .data("name", option.val())
-                    .val(parseFloat(val));
-
-                break;
-            default:
-                this.getInputs().filter(".option-text-input")
-                    .addClass("show")
-                    .data("name", option.val())
-                    .val(val);
-        }
-
-        if (Object.keys(this.getChanges()).length)
-            this.getContainer().find(".option-submit").show();
-        else
-            this.getContainer().find(".option-submit").hide();
-
-    };
-
-    var self = this;
-    this.get().on("change", function () {
-        self.update();
-    });
-
-    this.getInputs().on("change", function () {
-        self.update();
-    });
-
-    this.getContainer().find(".option-submit").click(function () {
-        self.submitOption();
-        self.setConfig(self, self.getChanges(), function () {});
-    });
-    this.getContainer().find(".option-revert").click(function () {
-        self.fill();
-    });
 }
 
 var LimitedOptions = {
@@ -395,6 +266,156 @@ function makeMotorRequest(speed, direction, callback) {
     })
 }
 
+function SettingsGroup(name) {
+    this.title = name;
+    this.getConfig = function (f) { return f({}); };
+    this.setConfig = function (sg, o, f) { f(); };
+    this.humanise = function (e) { return e; };
+    this.limitedOptions = {};
+    this.rangeOptions = {};
+
+    var self = this;
+    this.generate = function (win) {
+        self.getConfig(function (conf) {
+            var body = $(win.element).find(".window-body")[0],
+                setid = generateUUID(),
+                header = document.createElement("h2");
+                header.innerHTML = "<a href='#' class='up-down on' for='#"+setid+"'>" +
+                    self.title + "</a>";
+            body.appendChild(header);
+
+            var section = document.createElement("section");
+                section.id = setid;
+            body.appendChild(section);
+
+            for (var prop in conf) if (conf.hasOwnProperty(prop)) {
+                var val = conf[prop],
+                    id = generateUUID(),
+                    row = document.createElement("div");
+                row.className = "control-row";
+                section.appendChild(row);
+
+                var label = document.createElement("label");
+                $(label).attr("for", id)
+                    .text(self.humanise(prop));
+
+                var prepareInput = function (type, row, prop, id, val) {
+                    var input = document.createElement("input");
+                        input.type = type;
+                    row.appendChild(input);
+                        if (type == "checkbox")
+                            input.checked = input.dataset.originalValue =
+                                val.toString() === "true";
+                        else input.value = input.dataset.originalValue = val;
+
+                        input.id = id;
+                        input.dataset.option = self.title + "/" + prop;
+                    return input;
+                };
+
+                switch (true) {
+                    case self.rangeOptions[prop] instanceof Array
+                            && self.rangeOptions[prop].length >= 2:
+                        label.className = "small-label";
+                        row.appendChild(label);
+
+                        var ro = self.rangeOptions[prop];
+                        var range = prepareInput("range", row, prop, id, val);
+                            range.min = ro[0];
+                            range.max = ro[1];
+                            if (ro.length > 2) range.step = ro[2];
+                            else range.step = (ro[1] - ro[0]) / 100;
+                            range.value = val;
+                        break;
+
+                    case self.limitedOptions[prop] instanceof Object:
+                        label.className = "small-label";
+                        row.appendChild(label);
+
+                        var select = document.createElement("select");
+                            select.className = "styled";
+                            select.dataset.option = self.title + "/" + prop;
+                            select.id = id;
+                        row.appendChild(select);
+
+                        TBI.UI.updateUI();
+                        TBI.UI.fillSelect(select, self.limitedOptions[prop],
+                            function (option, i, value) {
+                                option.innerHTML = value;
+                                option.value = value;
+                            }
+                        );
+                        $(select)
+                            .data("originalValue", val)
+                            .val(val).trigger("change");
+                        break;
+
+                    case val === "true":
+                    case val === "false":
+                    case typeof val == typeof true:
+                        prepareInput("checkbox", row, prop, id, val);
+                        row.appendChild(label);
+                        break;
+
+                    case !isNaN(parseFloat(val)):
+                    case typeof val == typeof 1:
+                        label.className = "small-label";
+                        row.appendChild(label);
+                        prepareInput("number", row, prop, id, val);
+                        break;
+
+                    default:
+                        label.className = "small-label";
+                        row.appendChild(label);
+                        prepareInput("text", row, prop, id, val);
+                        break;
+
+                }
+            }
+
+            TBI.UI.updateUI();
+        });
+    };
+
+    this.getChanges = function (win) {
+        var inputs = $(win.element).find("[data-option^='" + self.title + "/']"),
+            conf = {};
+
+        inputs.each(function (i, e) {
+            var prop = $(e).data("option").split("/")[1],
+                val = $(e).val(),
+                d = $(e).data("originalValue");
+
+            if (d != undefined) d = d.toString();
+            switch (e.nodeName.toLowerCase()) {
+                case "input": switch (e.type) {
+                    case "checkbox":
+                        if (e.checked !== (d === "true"))
+                            conf[prop] = e.checked;
+                        break;
+                    case "number":
+                    case "range":
+                        if (val !== d)
+                            conf[prop] = parseFloat(val);
+                        break;
+                    default:
+                        if (val !== d)
+                            conf[prop] = $(e).val();
+                } break;
+                default:
+                    if (val !== d)
+                        conf[prop] = $(e).val();
+            }
+        });
+
+        return conf;
+    };
+
+    this.update = function (win) {
+        self.setConfig(self, self.getChanges(win), function () {});
+    };
+}
+
 function saveUIConfig() {
     localStorage.setItem("robot-project-ui-config",
         JSON.stringify(uiConfig));
@@ -402,7 +423,8 @@ function saveUIConfig() {
 
 $(function () {
 Require(["assets/js/tblib/loader.js",
-         "assets/js/tblib/ui.js"], function () {
+         "assets/js/tblib/ui.js",
+         "assets/js/jswm2.js"], function () {
 
     try {
         uiConfig =
@@ -427,6 +449,7 @@ Require(["assets/js/tblib/loader.js",
     loader.start();
 
     $(document).on("pageload", function () {
+        wm = new JSWM($(".dialog-container")[0]);
         TBI.UI.updateUI();
         $("button[data-icon-src]").each(function () {
             var self = $(this);
@@ -462,24 +485,31 @@ Require(["assets/js/tblib/loader.js",
             }
         });
 
+        var kbEventsValid = true;
+        $(".motor-controls, .image-port")
+            .on("mouseenter", function () { kbEventsValid = true; })
+            .on("mouseleave", function () { kbEventsValid = false; });
+
         $(document).on("keydown", function (event) {
+            if (!kbEventsValid) return true;
             var el = keyToUI(event);
 
             if (el) {
                 el.trigger("keydown", event);
                 el.addClass("active");
-                return false;
+                //return false;
             }
         });
 
         $(document).on("keyup", function (event) {
+            if (!kbEventsValid) return true;
             var el = keyToUI(event);
 
             if (el) {
                 el.removeClass("active");
                 el.trigger("keyup", event);
                 el.trigger("click", event);
-                return false;
+                //return false;
             }
         });
 
@@ -499,6 +529,12 @@ Require(["assets/js/tblib/loader.js",
             }
         });
 
+        $(".toggle-controls").click(function () {
+            if (TBI.UI.isToggled(this))
+                $(".motor-controls").removeClass("closed");
+            else $(".motor-controls").addClass("closed");
+        });
+
         $(".toggle-fullscreen").click(function () {
             var $ip = $(".image-port");
 
@@ -513,62 +549,76 @@ Require(["assets/js/tblib/loader.js",
             $ip.addClass("fullscreen");
         });
 
-        var cameraOptionSelect = new OptionSelect("camera");
-        cameraOptionSelect.getConfig = getCameraConfig;
-        cameraOptionSelect.setConfig = function (os, changes, callback) {
-            if (Object.keys(changes).length) {
-                $.ajax({
-                    method: "PUT",
-                    url: "/api/v1/camera/config",
-                    data: JSON.stringify(changes),
-                    contentType: "application/json",
-                    success: function (response, status, xhr) {
-                        os.fill();
-                        refreshCamera();
-                        callback();
-                    },
-                    error: function (xhr, status, error) {
-                        reportError("Failed to save camera configuration.", xhr);
+        $(".open-settings").click(function () {
+            var settingGroups = [],
+                window = wm.spawn(JSWM.Dialog, "Settings", "", {
+                    x: "25%",
+                    y: "10%",
+                    width: "50%",
+                    height: "80%",
+                    shadow: true,
+                    dialogOptions: JSWM.DialogOptions.ok
+                                 | JSWM.DialogOptions.cancel,
+                    onAccept: function (win) {
+                        settingGroups.forEach(function (e) {
+                            if (e instanceof SettingsGroup)
+                                e.update(win);
+                        });
                     }
                 });
 
-                TBI.UI.updateSelect(os.get()[0], {});
-                os.get().val("-").trigger("change");
-            }
-        };
-        cameraOptionSelect.limitedOptions = LimitedOptions;
-        cameraOptionSelect.humanise = getHumanReadableOption;
-        cameraOptionSelect.fill();
+            var ui = new SettingsGroup("UI");
+                ui.getConfig = function (cb) { return cb(uiConfig); };
+                ui.setConfig = function (sg, changes, callback) {
+                    if (Object.keys(changes).length) {
+                        for (var prop in changes) if (changes.hasOwnProperty(prop))
+                            uiConfig[prop] = changes[prop];
 
-        var uiOptionSelect = new OptionSelect("ui");
-        uiOptionSelect.getConfig = function (callback) {
-            callback(uiConfig);
-        };
-        uiOptionSelect.setConfig = function (os, changes, callback) {
-            if (Object.keys(changes).length) {
-                TBI.UI.updateSelect(os.get()[0], {});
-                os.get().val("-").trigger("change");
+                        saveUIConfig();
+                        callback();
+                    }
+                };
+                ui.humanise = function (name) {
+                    var labels = {
+                        useMJPEG: "Use MJPEG",
+                        jpegRefreshDelay: "Refresh Delay",
+                        mjpegRefreshDelay: "Stream Refresh Delay",
+                        motorMaxSpeed: "Maximum Motor Speed",
+                        motorTurnMagnitude: "Motor Turn Magnitude"
+                    };
+                    return labels[name] || name;
+                };
+                ui.rangeOptions = {
+                    motorMaxSpeed: [0, 1],
+                    motorTurnMagnitude: [0, 2]
+                };
+                ui.generate(window);
+            settingGroups.push(ui);
 
-                for (var prop in changes) if (changes.hasOwnProperty(prop)) {
-                    if (changes[prop] == "true")
-                        uiConfig[prop] = true;
-
-                    else if (changes[prop] == "false")
-                        uiConfig[prop] = false;
-
-                    else if (!isNaN(parseFloat(changes[prop])))
-                        uiConfig[prop] = parseFloat(changes[prop]);
-
-                    else uiConfig[prop] = changes[prop];
-                }
-
-                saveUIConfig();
-
-                os.fill();
-                callback();
-            }
-        };
-        uiOptionSelect.fill();
+            var camera = new SettingsGroup("Camera");
+                camera.getConfig = getCameraConfig;
+                camera.setConfig = function (sg, changes, callback) {
+                    if (Object.keys(changes).length) {
+                        $.ajax({
+                            method: "PUT",
+                            url: "/api/v1/camera/config",
+                            data: JSON.stringify(changes),
+                            contentType: "application/json",
+                            success: function (response, status, xhr) {
+                                refreshCamera();
+                                callback();
+                            },
+                            error: function (xhr, status, error) {
+                                reportError("Failed to save camera configuration.", xhr);
+                            }
+                        });
+                    }
+                };
+                camera.limitedOptions = LimitedOptions;
+                camera.humanise = getHumanReadableOption;
+                camera.generate(window);
+            settingGroups.push(camera);
+        });
 
         function getMotorParameters(newDirection) {
             function lookup(dir) {

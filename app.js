@@ -41,11 +41,10 @@ var hostname = os.hostname(),
     os_type = os.type();
 
 app.get("/", auth.authenticate(), function (req, res, next) {
-
     res.render("index", {
         title: "HSHS Robot Project",
         brand: "HSHS Robot Project",
-        sub_brand: os_type + " on " + hostname
+        username: req.user.username
     });
 
 });
