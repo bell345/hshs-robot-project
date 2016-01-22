@@ -4,7 +4,7 @@
  * MIT Licensed
  */
 
-var uiConfig, wm;
+var uiConfig, wm, ws, timeEvents = [];
 
 function keyToUI(event) {
     var key = event.which;
@@ -248,22 +248,33 @@ function restartServer() {
 }
 
 function makeMotorRequest(speed, direction, callback) {
-    var options = {};
+    var options = {
+        time: new Date().getTime()
+    };
     if (!isNull(speed)) options["speed"] = speed;
     if (!isNull(direction)) options["direction"] = direction;
-    $.ajax({
-        method: "POST",
-        url: "/api/v1/motor/control",
-        data: JSON.stringify(options),
-        contentType: "application/json",
-        success: function (response, status, xhr) {
-            callback(response, status, xhr);
-        },
-        error: function (xhr, status, error) {
-            console.log(xhr);
-            reportError("Failed to update motor control.", xhr);
-        }
-    })
+
+    if (isNull(uiConfig.useWebSocket)) uiConfig.useWebSocket = true;
+    if (!uiConfig.useWebSocket) {
+        $.ajax({
+            method: "POST",
+            url: "/api/v1/motor/control",
+            data: JSON.stringify(options),
+            contentType: "application/json",
+            success: function (response, status, xhr) {
+                callback(response, status, xhr);
+            },
+            error: function (xhr, status, error) {
+                console.log(xhr);
+                reportError("Failed to update motor control.", xhr);
+            }
+        });
+    } else {
+        options["command"] = "control";
+        ws.send("motor", options, function (msg) {
+            callback(msg);
+        });
+    }
 }
 
 function SettingsGroup(name) {
@@ -421,6 +432,109 @@ function saveUIConfig() {
         JSON.stringify(uiConfig));
 }
 
+function WSManager() {
+    this.authenticated = false;
+    var self = this;
+    $(this).on("authenticated", function (msg) {
+        self.authenticated = true;
+    });
+}
+WSManager.prototype = {
+    constructor: WSManager,
+    authenticated: false,
+    version: 1,
+    _eventRedirect: function (name) {
+        var self = this;
+        if (arguments.length > 1) {
+            var args = [].splice.call(arguments, 0);
+            args.forEach(function (e) { self._eventRedirect(e); });
+        }
+
+        $(this.socket).on(name, function () {
+            $(self).trigger.apply($(self), [name].concat(arguments));
+        });
+    },
+    open: function (endpoint) {
+        var protocol = "ws://";
+        if (location.protocol === "https:")
+            protocol = "wss://";
+
+        this.uri = protocol + location.host + "/" + endpoint;
+        this.socket = new WebSocket(this.uri);
+
+        var self = this;
+        this.on("open", function () {
+            self.send("auth", {
+                token: readCookie("access_token")
+            });
+        });
+        this.on("message", function (event) {
+            var msg = JSON.parse(event.originalEvent.data);
+            //console.log("Server payload");
+            //console.log(msg);
+            switch (msg.type) {
+                case "error":
+                    reportError("A WebSocket error has occurred: ",
+                        msg.error_type + ": " + msg.error_description);
+                    break;
+                case "status":
+                    if (msg.time_events) {
+                        var latency = 0;
+                        for (var prop in msg.time_events) if (msg.time_events.hasOwnProperty(prop)) {
+                            //console.log("%s in %s ms", prop, msg.time_events[prop]);
+                            latency += msg.time_events[prop];
+                        }
+                        msg.time_events.back = new Date().getTime() - (latency + msg.time);
+                        //console.log("back in %s ms", msg.time_events.back);
+                        timeEvents.push(msg.time_events);
+                    }
+            }
+            if (msg.authenticated && !self.authenticated) {
+                self.trigger("authenticated", msg);
+                self.authenticated = true;
+            }
+            if (msg.type) self.trigger("message-type." + msg.type, msg);
+            if (msg.id) self.trigger("message-id." + msg.id, msg);
+        });
+    },
+    close: function () {
+        this.socket.close();
+    },
+    send: function (type, payload, callback) {
+        if (typeof payload == "string") {
+            var obj = {};
+            obj[type] = payload;
+            payload = obj;
+        }
+        payload.type = type;
+        payload.version = this.version;
+        payload.id = generateUUID();
+        //payload.token = readCookie("access_token");
+
+        //console.log("Client payload");
+        //console.log(payload);
+
+        this.socket.send(JSON.stringify(payload));
+
+        if (!callback) return;
+        this.on("message-id." + payload.id, function handler(e, msg) {
+            callback(msg.message);
+        });
+    },
+    on: function () {
+        var sock = $(this.socket);
+        sock.on.apply(sock, arguments);
+    },
+    off: function () {
+        var sock = $(this.socket);
+        sock.off.apply(sock, arguments);
+    },
+    trigger: function () {
+        var sock = $(this.socket);
+        sock.trigger.apply(sock, arguments);
+    }
+};
+
 $(function () {
 Require(["assets/js/tblib/loader.js",
          "assets/js/tblib/ui.js",
@@ -434,6 +548,7 @@ Require(["assets/js/tblib/loader.js",
     } catch (e) {
         uiConfig = {
             "useMJPEG": true,
+            "useWebSocket": true,
             "jpegRefreshDelay": 100,
             "mjpegRefreshDelay": 5000,
             "motorMaxSpeed": 1,
@@ -446,10 +561,21 @@ Require(["assets/js/tblib/loader.js",
     //        JSON.stringify(uiConfig));
     //});
 
+    ws = new WSManager();
+    ws.open("api/v1/ws");
+
+    $(window).on("beforeunload", function () { ws.close(); });
+
+    loader.addTask(function (resolve) {
+        if (ws.authenticated) resolve();
+        else ws.on("authenticated", function () { resolve(); });
+    }, 2000, "websocket");
+
     loader.start();
 
     $(document).on("pageload", function () {
         wm = new JSWM($(".dialog-container")[0]);
+
         TBI.UI.updateUI();
         $("button[data-icon-src]").each(function () {
             var self = $(this);
@@ -581,6 +707,7 @@ Require(["assets/js/tblib/loader.js",
                 ui.humanise = function (name) {
                     var labels = {
                         useMJPEG: "Use MJPEG",
+                        useWebSocket: "Use WebSockets",
                         jpegRefreshDelay: "Refresh Delay",
                         mjpegRefreshDelay: "Stream Refresh Delay",
                         motorMaxSpeed: "Maximum Motor Speed",

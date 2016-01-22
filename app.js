@@ -5,15 +5,19 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var authServer = require("./auth");
+var http = require("http");
 var os = require("os");
 var api = require("./api");
+var wsapi = require("./api/ws");
 var model = require("./models/mongo");
 
 var routes = require('./routes/index');
 var login = require("./routes/login");
 var register = require("./routes/register");
 
+var server = http.createServer();
 var app = express();
+server.on("request", app);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -51,7 +55,8 @@ app.get("/", auth.authenticate(), function (req, res, next) {
 
 //app.use("/api/v1/camera/mjpeg", auth.authenticate(), require("./serve/mjpeg")("/dev/shm/mjpeg/cam.jpg"));
 
-app.use("/api/v1", api(model, auth));
+app.use("/api/v1", api(server, auth));
+app.use("/api/v1/ws", wsapi(server, "/api/v1/ws", auth));
 app.use("/register", auth.authenticate(true), register(auth));
 
 // catch 404 and forward to error handler
@@ -89,4 +94,4 @@ app.use(function(err, req, res, next) {
 });
 
 
-module.exports = app;
+module.exports = server;

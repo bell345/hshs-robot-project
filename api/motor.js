@@ -5,12 +5,13 @@
  */
 var error = require("./error"),
     express = require("express"),
+    ws = require("express-ws"),
     path = require("path"),
     execFile = require("child_process").execFile,
     spawn = require("child_process").spawn,
     fs = require("fs");
     
-module.exports = function (auth) {
+module.exports = function (auth, server) {
 
     var router = express.Router(),
         BASE_URL = "/srv/http/motor",
@@ -75,8 +76,37 @@ module.exports = function (auth) {
         motor_proc.stdin.write("{speed:0,direction:0}\n", function (err) {
             if (err) return next(error("server_error",
                 "Failed to update motor configuration.", err));
-        })
+        });
     });
+
+    //router.ws("/", function (ws, req) {
+    //    ws.on("message", function (text) {
+    //        var msg = {};
+    //        try {
+    //            msg = JSON.parse(text);
+    //        } catch (e) {
+    //            ws.send({
+    //                type: "error",
+    //                error_type: "bad_request",
+    //                error_description: "Message must be valid JSON."
+    //            }, function (err) { });
+    //        }
+    //
+    //        switch (msg.type) {
+    //
+    //        }
+    //    });
+    //    require("cookie-parser")()(req, null, function () {
+    //        auth.authenticate(true)(req, null, function (err) {
+    //            if (err) console.log(err);
+    //            console.log("Found");
+    //            ws.send("Connected");
+    //            ws.on("message", function (msg) {
+    //                console.log("Recv msg: " + msg);
+    //            });
+    //        });
+    //    });
+    //});
     
     return router;
 

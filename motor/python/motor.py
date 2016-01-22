@@ -52,6 +52,9 @@ def update(speed_param=speed, direction_param=direction):
     speed = max(min(speed_param, 1), -1)
     direction = direction_param
 
+    if speed < 0:
+        direction = -direction
+
     print("Speed = {}".format(speed))
     print("Direction = {}".format(direction))
 

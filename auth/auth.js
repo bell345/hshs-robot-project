@@ -3,12 +3,14 @@
  */
 
 var error = require("./error"),
-    runner = require("./runner");
+    runner = require("./runner"),
+    verify = require("./verify");
 
 module.exports = Auth;
 
 var fns = [
     getToken,
+    verifyToken,
     checkToken
 ];
 
@@ -21,7 +23,9 @@ function Auth(config, req, res, next) {
     runner(fns, this, next);
 }
 
-function retrieveBearerToken(header) {
+function retrieveBearerToken(req) {
+    if (!req.get) return null;
+    var header = req.get("Authorization");
     if (!header) return null;
     var match = header.match(/^Bearer (.*)$/);
     if (!match) return null;
@@ -30,7 +34,7 @@ function retrieveBearerToken(header) {
 
 function getToken(done) {
     var cookieToken = this.req.cookies.access_token,
-        headerToken = retrieveBearerToken(this.req.get("Authorization"));
+        headerToken = retrieveBearerToken(this.req);
 
     if (!cookieToken &&
         !headerToken)
@@ -41,33 +45,30 @@ function getToken(done) {
     done();
 }
 
-function checkToken(done) {
+function verifyToken(done) {
     var self = this;
-    this.model.getAccessToken(this.bearerToken, function (err, token) {
+    self.config.verify(this.bearerToken, function (err, result) {
+        if (err || !result) return done(err);
+
+        self.token = result;
+        done();
+    });
+}
+
+function checkToken(done) {
+    this.req.user = this.token.user || { id: this.token.id };
+
+    var self = this;
+    self.model.getUser(self.req.user.id, function (err, user) {
         if (err) return done(error("server_error", false, err));
 
-        if (!token)
+        delete user.hash;
+        self.req.user = user;
+
+        if (self.req.privileged && self.req.user.id == 2)
             return done(error("invalid_token",
-                "The access token provided is invalid."));
+                "A privileged account is required to access this resource."));
 
-        if (token.expires !== null &&
-            (!token.expires || token.expires < new Date()))
-            return done(error("invalid_token",
-                "The access token provided has expired."));
-
-        self.req.user = token.user ? token.user : { id: token.id };
-
-        self.model.getUser(self.req.user.id, function (err, user) {
-            if (err) return done(error("server_error", false, err));
-
-            delete user.hash;
-            self.req.user = user;
-
-            if (self.req.privileged && self.req.user.id == 2)
-                return done(error("invalid_token",
-                    "A privileged account is required to access this resource."));
-
-            done();
-        });
+        done();
     });
 }

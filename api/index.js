@@ -11,29 +11,29 @@ var error = require("./error"),
     path = require("path"),
     express = require("express");
 
-var BASE_URL = "/srv/http";
+//var BASE_URL = "/srv/http";
+//
+//function j(filename) { return path.join(BASE_URL, filename); }
+//
+//function retrieveBearerToken(header) {
+//    if (!header) return null;
+//    var match = header.match(/^Bearer (.*)$/);
+//    if (!match) return null;
+//    else return match[1];
+//}
+//
+//function getToken(req, cb) {
+//    var cookieToken = req.cookies.access_token,
+//        headerToken = retrieveBearerToken(req.get("Authorization"));
+//
+//    if (!cookieToken &&
+//        !headerToken)
+//        return;
+//
+//    return cb(cookieToken || headerToken);
+//}
 
-function j(filename) { return path.join(BASE_URL, filename); }
-
-function retrieveBearerToken(header) {
-    if (!header) return null;
-    var match = header.match(/^Bearer (.*)$/);
-    if (!match) return null;
-    else return match[1];
-}
-
-function getToken(req, cb) {
-    var cookieToken = req.cookies.access_token,
-        headerToken = retrieveBearerToken(req.get("Authorization"));
-
-    if (!cookieToken &&
-        !headerToken)
-        return;
-
-    return cb(cookieToken || headerToken);
-}
-
-module.exports = function (model, auth) {
+module.exports = function (server, auth) {
     var router = express.Router();
 
     // API request logging
@@ -59,9 +59,8 @@ module.exports = function (model, auth) {
     //    });
     //    next();
     //});
-
     router.use("/camera", auth.authenticate(), camera(auth));
-    router.use("/motor", auth.authenticate(true), motor(auth));
+    router.use("/motor", auth.authenticate(true), motor(auth, server));
     router.use("/admin", auth.authenticate(true), admin(auth));
 
     router.use(function (req, res, next) {

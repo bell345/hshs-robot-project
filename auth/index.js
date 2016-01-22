@@ -22,6 +22,7 @@ var issue = require("./issue"),
     error = require("./error"),
     authenticate = require("./auth"),
     register = require("./register"),
+    verify = require("./verify"),
     qs = require("qs");
 
 module.exports = AuthServer;
@@ -68,6 +69,10 @@ AuthServer.prototype.authenticate = function (privileged) {
         req.privileged = privileged ? true : false;
         return new authenticate(self, req, res, next);
     };
+};
+
+AuthServer.prototype.verify = function (token, done) {
+    return new verify(this, token, done);
 };
 
 AuthServer.prototype.register = function () {
