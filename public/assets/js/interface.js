@@ -459,7 +459,9 @@ WSManager.prototype = {
         if (location.protocol === "https:")
             protocol = "wss://";
 
-        this.uri = protocol + location.host + "/" + endpoint;
+        if (endpoint || !this.uri)
+            this.uri = protocol + location.host + "/" + (endpoint || "");
+
         this.socket = new WebSocket(this.uri);
 
         var self = this;
@@ -500,7 +502,19 @@ WSManager.prototype = {
     close: function () {
         this.socket.close();
     },
+    ensureOpen: function (endpoint) {
+        var self = this;
+
+        function state(prop) { return self.socket.readyState == self.socket[prop]; }
+
+        if (state("CLOSED")) try {
+            this.open(endpoint);
+        } catch (e) { return false; }
+
+        return state("OPEN");
+    },
     send: function (type, payload, callback) {
+        if (!this.ensureOpen()) return;
         if (typeof payload == "string") {
             var obj = {};
             obj[type] = payload;
